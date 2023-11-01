@@ -9,3 +9,86 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## General variables
+
+```{r}
+data_folder <- "~/Library/CloudStorage/OneDrive-OxfordUniversityClinicalResearchUnit/GitHub/choisy/DART/"
+```
+
+## Packages
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+```
+
+## Reading data
+
+Loading the full line listing:
+
+```{r}
+ll <- read_csv(paste0(data_folder, "incidence_full.csv"))
+```
+
+A function that fills gaps:
+
+```{r}
+fill_gaps <- function(x, y = NULL) {
+  namesx <- names(x)
+  if (is.null(y)) {
+    y <- namesx[1]
+    xnames <- namesx[-1]
+  }
+  else xnames <- setdiff(names(x), y)
+  tibble(date_admitted = as_date(min(x[[y]]):max(x[[y]]))) |> 
+    left_join(x, y) |> 
+    replace_na(setNames(as.list(rep(0, length(xnames))), xnames))
+}
+```
+
+Computing the daily incidences:
+
+```{r}
+d_inc <- ll |> 
+  filter(status == "in-patient") |> 
+  group_by(date_admitted) |> 
+  tally() |> 
+  fill_gaps()
+```
+
+Tuning `plot()`:
+
+```{r}
+plot2 <- function(...) plot(..., xlab = NA, ylab = "incidence")
+```
+
+Looking at the time series:
+
+```{r}
+with(d_inc, plot2(date_admitted, n, type = "s"))
+```
+
+A function that randomly select a time series of length `l`:
+
+```{r}
+rts <- function(x, l) {
+  a <- round(runif(1, 1, nrow(d_inc) - l))
+  d_inc |> 
+    slice(a:(a + l))
+}
+```
+
+Selecting a random portion of the time series of length 60 days
+
+```{r}
+subts <- rts(d_inc, 60)
+```
+
+Looking like this:
+
+```{r}
+with(subts, plot2(date_admitted, n, type = "o"))
+```
+
